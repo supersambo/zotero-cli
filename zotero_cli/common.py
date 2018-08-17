@@ -56,3 +56,4 @@ def save_config(cfgdata):
         cfg.set("zotcli", key, unicode(value))
     with open(cfg_path, "w") as fp:
         cfg.write(fp)
+

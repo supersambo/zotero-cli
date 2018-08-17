@@ -104,6 +104,7 @@ def configure():
         config['library_id'] = click.prompt("Please enter your library ID")
     sync_method = select(
         [("local", "Local Zotero storage"),
+            ("zotfile", 'Use ZotFile storage'), 
             ("zotcoud", "Use Zotero file cloud"),
             ("webdav", "Use WebDAV storage")],
         default=1, required=True,
@@ -135,6 +136,9 @@ def configure():
                 else:
                     config['storage_dir'] = storage_dir
                     break
+    elif sync_method == "zotfile":
+        storage_dir = click.prompt( "Please enter the path to your Zotero storage directory", default='')
+        config['storage_dir'] = storage_dir
     elif sync_method == "webdav":
         while True:
             if not config.get('webdav_path'):
@@ -174,6 +178,13 @@ def configure():
     config['note_format'] = select(zip(markup_formats, markup_formats),
                                    default=markup_formats.index('markdown'),
                                    prompt="Select markup format for notes")
+
+    betterbibtex = click.confirm("\nDo you use BetterBibtex and want to use its citekeys as identifiers?")
+    config['betterbibtex'] = betterbibtex
+    if betterbibtex:
+        app_dir = click.prompt("\nPlease enter Zotero Application direcotry?", default= os.path.join(pathlib.Path(os.environ['HOME']), 'Zotero'))
+        config['app_dir'] = app_dir
+
     save_config(config)
     zot = ZoteroBackend(config['api_key'], config['library_id'], 'user')
     click.echo("Initializing local index...")
@@ -373,3 +384,7 @@ def select(choices, prompt="Please choose one", default=0, required=True):
             return None
         else:
             return choices[choice_idx][0]
+
+if __name__ == "__main__":
+    s = tuple(find_storage_directories())
+    print(s)

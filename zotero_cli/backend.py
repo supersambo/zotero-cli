@@ -58,7 +58,6 @@ AUTH_URL = 'https://www.zotero.org/oauth/authorize'
 ACCESS_TOKEN_URL = 'https://www.zotero.org/oauth/access'
 BASE_URL = 'https://api.zotero.org'
 
-
 def encode_blob(data):
     """ Encode a dictionary to a base64-encoded compressed binary blob.
 
@@ -143,6 +142,9 @@ class ZoteroBackend(object):
         self.config = load_config()
         self.note_format = self.config['zotcli.note_format']
         self.storage_dir = self.config.get('zotcli.storage_dir')
+        self.betterbibtex = self.config.get('zotcli.betterbibtex')
+        if self.config.get('zotcli.app_dir'):
+            self.app_dir = self.config.get('zotcli.app_dir')
 
         api_key = api_key or self.config.get('zotcli.api_key')
         library_id = library_id or self.config.get('zotcli.library_id')
@@ -161,6 +163,14 @@ class ZoteroBackend(object):
                        .format(since_last_sync))
             num_updated = self.synchronize()
             click.echo("Updated {} items".format(num_updated))
+
+    def getBetterBibtexKeys(self):
+        with open(os.path.join(self.app_dir, 'better-bibtex/_better-bibtex.json')) as data_file:    
+            data = json.load(data_file)
+        keys = {}
+        for i in data['collections'][0]['data']:
+            keys[i['itemKey']] = i['citekey']
+        return keys
 
     def synchronize(self):
         """ Update the local index to the latest library version. """
@@ -191,6 +201,9 @@ class ZoteroBackend(object):
         :type recursive: bool
         :returns:       Generator that yields items
         """
+        if self.betterbibtex: 
+            bbtxkeys = self.getBetterBibtexKeys()
+
         if limit is None:
             limit = 100
         query_args = {'since': since}
@@ -207,8 +220,14 @@ class ZoteroBackend(object):
             while self._zot.links['self'] != last_url:
                 items.extend(self._zot.follow())
         for it in items:
-            matches = CITEKEY_PAT.finditer(it['data'].get('extra', ''))
-            citekey = next((m.group(1) for m in matches), None)
+            if self.betterbibtex:
+                try:
+                    citekey = bbtxkeys[it['data']['key']]
+                except:
+                    citekey = None
+            else:
+                matches = CITEKEY_PAT.finditer(it['data'].get('extra', ''))
+                citekey = next((m.group(1) for m in matches), None)
             yield Item(key=it['data']['key'],
                        creator=it['meta'].get('creatorSummary'),
                        title=it['data'].get('title', "Untitled"),
@@ -249,10 +268,14 @@ class ZoteroBackend(object):
         return attachments
 
     def get_attachment_path(self, attachment):
+        storage_method = self.config['zotcli.sync_method']
+        if storage_method == 'zotfile':
+            storage = self.config['zotcli.storage_dir']
+            return Path(os.path.join(storage, attachment['data']['title']))
+
         if not attachment['data']['linkMode'].startswith("imported"):
             raise ValueError(
                 "Attachment is not stored on server, cannot download!")
-        storage_method = self.config['zotcli.sync_method']
         if storage_method == 'local':
             return Path(attachment['data']['path'])
         out_path = TEMP_DIR/attachment['data']['filename']
@@ -278,6 +301,7 @@ class ZoteroBackend(object):
         If the note was previously edited with zotcli, the original markup
         will be restored. If it was edited with the Zotero UI, it will be
         converted from the HTML via pandoc.
+
 
         :param note_html:       HTML of the note
         :param note_version:    Library version the note was last edited
@@ -360,3 +384,10 @@ class ZoteroBackend(object):
             self._logger.warn(
                 "Could not upload note to Zotero. You can find the note "
                 "markup in 'note_backup.txt' in the current directory")
+
+
+if __name__ == "__main__":
+    t = ZoteroBackend()
+    # print(t.getBetterBibtexKeys())
+    # att = t.attachments("RE65AMZ3")
+    # print(t.get_attachment_path(att))

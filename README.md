@@ -1,3 +1,9 @@
+*This a fork of jbaiter/zotero-cli. It is supposed to make zotcli work with my personal zotero setup:
+- I use [ZotFile PDF Manager](http://zotfile.com) which can be selected as storage type in zotcli setup. Zotcli should then be able to find those attachments
+- I use [Better Bib(La)TeX](http://retorque.re/zotero.better.bibtex) for handling bibtex files. This option can be selected in zotcli setup and betterbibtex citekey are then used as identifiers. 
+*
+
+
 # zotero-cli
 
 [![asciicast](http://asciinema.org/a/17n8da33w2gj67pyfwegfmfns.png)](https://asciinema.org/a/17n8da33w2gj67pyfwegfmfns)
